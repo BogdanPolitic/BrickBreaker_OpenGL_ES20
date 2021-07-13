@@ -1,0 +1,2 @@
+rootProject.name = "BrickBreaker_try_0"
+include ':app'
