@@ -65,10 +65,10 @@ public class Collisions {
         if (activeBallPosition[X] + ValueSheet.ballRadius * screenRatio > 1.0f - ValueSheet.borderWidthHoriz)
             borderCollisions.add(Borders.RIGHT);
 
-        if (activeBallPosition[Y] + ValueSheet.ballRadius > 1.0f - ValueSheet.borderWidthHoriz * screenRatio)
+        if (activeBallPosition[Y] + ValueSheet.ballRadius > 1.0f - ValueSheet.borderWidthHoriz / screenRatio)
             borderCollisions.add(Borders.TOP);
 
-        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight - ValueSheet.platformHeight / 2.0f) {
+        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight) {
             float[] platformPosition = MyGLRenderer.shapes.get("Platform").GetShapePosition();
             if (Math.abs(activeBallPosition[X] - platformPosition[X]) <= ValueSheet.platformWidth / 2.0f)
                 borderCollisions.add(Borders.PLATFORM);
@@ -108,6 +108,7 @@ public class Collisions {
     }
 
     private static void ReverseDirection() {
+        System.out.println("reverse direction");
         GameStatus.ballDirection = new float[] {
                 -GameStatus.ballDirection[Y],
                 -GameStatus.ballDirection[X],
@@ -129,7 +130,7 @@ public class Collisions {
     }
 
     private static void AddBrickGridCoordToCollisions(int gridPosX, int gridPosY) {
-        // daca bila e se afla intre coordonate din afara grid-ului de bricks, atunci ea sigur nu e in coliziune cu niciun brick:
+        // daca bila se afla intre coordonate din afara grid-ului de bricks, atunci ea sigur nu e in coliziune cu niciun brick:
         if (gridPosX < 0
                 || gridPosX >= BrickNetwork.size[X]
                 || gridPosY < 0
@@ -185,12 +186,6 @@ public class Collisions {
                 }
             }
         }
-
-        /*System.out.println("corners : " + cornersInRange.size());
-        for (int i = 0; i < cornersInRange.size(); i++) {
-            System.out.print("(" + cornersInRange.get(i).brickId + ", " + cornersInRange.get(i).cornerType + ")");
-        }
-        System.out.println(" ");*/
     }
 
     public static void CheckForBrickStraightEdgeCollisions() {
@@ -214,10 +209,21 @@ public class Collisions {
 
             Shape currentBrick = MyGLRenderer.shapes.get("Brick" + brickCollisions.get(brickId));
             float[] brickPosition = currentBrick.GetShapePosition();
-            if (Math.abs(brickPosition[Y] - activeBallPosition[Y]) <= ValueSheet.ballRadius + BrickNetwork.brickSize[Y] / 2.0f
-                    && Math.abs(brickPosition[X] - activeBallPosition[X]) <= ValueSheet.ballRadius * screenRatio + BrickNetwork.brickSize[X] / 2.0f) {
-                EdgeType edgeType = GetEdgeType(brickPosition, activeBallPosition);
-                edgesInRange.add(new EdgeInRange(brickCollisions.get(brickId), edgeType));
+            if (Math.abs(brickPosition[Y] - (activeBallPosition[Y] - ValueSheet.ballRadius)) <= BrickNetwork.brickSize[Y] / 2.0f
+                    && Math.abs(brickPosition[X] - activeBallPosition[X]) <= BrickNetwork.brickSize[X] / 2.0f) {
+                edgesInRange.add(new EdgeInRange(brickCollisions.get(brickId), EdgeType.TOP));
+            }
+            if (Math.abs(brickPosition[Y] - (activeBallPosition[Y] + ValueSheet.ballRadius)) <= BrickNetwork.brickSize[Y] / 2.0f
+                    && Math.abs(brickPosition[X] - activeBallPosition[X]) <= BrickNetwork.brickSize[X] / 2.0f) {
+                edgesInRange.add(new EdgeInRange(brickCollisions.get(brickId), EdgeType.BOTTOM));
+            }
+            if (Math.abs(brickPosition[Y] - activeBallPosition[Y]) <= BrickNetwork.brickSize[Y] / 2.0f
+                    && Math.abs(brickPosition[X] - (activeBallPosition[X] - ValueSheet.ballRadius * screenRatio)) <= BrickNetwork.brickSize[X] / 2.0f) {
+                edgesInRange.add(new EdgeInRange(brickCollisions.get(brickId), EdgeType.RIGHT));
+            }
+            if (Math.abs(brickPosition[Y] - activeBallPosition[Y]) <= BrickNetwork.brickSize[Y] / 2.0f
+                    && Math.abs(brickPosition[X] - (activeBallPosition[X] + ValueSheet.ballRadius * screenRatio)) <= BrickNetwork.brickSize[X] / 2.0f) {
+                edgesInRange.add(new EdgeInRange(brickCollisions.get(brickId), EdgeType.LEFT));
             }
         }
     }
@@ -225,52 +231,72 @@ public class Collisions {
     public static void ApplyBrickCollisions() {
         int collisionsCount = cornersInRange.size() + edgesInRange.size();
 
-        if (collisionsCount == 0)
+        if (collisionsCount == 0) {
+            FreeCollisionData();
             return;
+        }
 
         ProceedToDestructCollidedBricks();
 
-        if (collisionsCount > 1)
+        if (collisionsCount > 1) {
             ReverseDirection();
-        else {  // collisionsCount == 1
-            float[] reflectedDirection = new float[]{};
-            if (cornersInRange.size() > 0) {
-                GameStatus.ballDirection = MyMath.Reflect(
-                        GameStatus.ballDirection,
-                        cornerNormal.get(cornersInRange.get(0).cornerType)
-                );
-                GameStatus.NormalizeDirection();
-                return;
-            }
-
-            if (edgesInRange.size() > 0) {
-                GameStatus.ballDirection = MyMath.Reflect(
-                        GameStatus.ballDirection,
-                        edgeNormal.get(edgesInRange.get(0).edgeType)
-                );
-                GameStatus.NormalizeDirection();
-            }
+            FreeCollisionData();
+            return;
         }
 
-        brickCollisions = new ArrayList<Integer>();
-        cornersInRange = new ArrayList<CornerInRange>();
-        edgesInRange = new ArrayList<EdgeInRange>();
+        // collisionsCount == 1
+        float[] reflectedDirection;
+        if (cornersInRange.size() > 0) {
+            reflectedDirection = MyMath.Reflect(
+                    GameStatus.ballDirection,
+                    cornerNormal.get(cornersInRange.get(0).cornerType)
+            );
+            GameStatus.ballDirection = reflectedDirection;
+            GameStatus.NormalizeDirection();
+            FreeCollisionData();
+            return;
+        }
+
+        if (edgesInRange.size() > 0) {
+            reflectedDirection = MyMath.Reflect(
+                    GameStatus.ballDirection,
+                    edgeNormal.get(edgesInRange.get(0).edgeType)
+            );
+            GameStatus.ballDirection = reflectedDirection;
+            GameStatus.NormalizeDirection();
+        }
+
+        FreeCollisionData();
     }
 
     private static void ProceedToDestructCollidedBricks() {
         if (cornersInRange.size() > 0)
             for (int i = 0; i < cornersInRange.size(); i++) {
                 Brick brick = (Brick) MyGLRenderer.shapes.get("Brick" + cornersInRange.get(i).brickId);
-                if (brick.status == Brick.Status.ON)
+                Powerup powerup = (Powerup) MyGLRenderer.shapes.get("Powerup" + cornersInRange.get(i).brickId);
+                if (brick.status == Brick.Status.ON) {
                     brick.StartShrinking();
+                    GameStatus.remainingBricksCount--;
+                    powerup.StartDropping();
+                }
             }
 
         if (edgesInRange.size() > 0)
             for (int i = 0; i < edgesInRange.size(); i++) {
                 Brick brick = (Brick)MyGLRenderer.shapes.get("Brick" + edgesInRange.get(i).brickId);
-                if (brick.status == Brick.Status.ON)
+                Powerup powerup = (Powerup) MyGLRenderer.shapes.get("Powerup" + edgesInRange.get(i).brickId);
+                if (brick.status == Brick.Status.ON) {
                     brick.StartShrinking();
+                    GameStatus.remainingBricksCount--;
+                    powerup.StartDropping();
+                }
             }
+    }
+
+    public static void FreeCollisionData() {
+        brickCollisions = new ArrayList<Integer>();
+        cornersInRange = new ArrayList<CornerInRange>();
+        edgesInRange = new ArrayList<EdgeInRange>();
     }
 
     /*
@@ -292,30 +318,20 @@ public class Collisions {
         }
     }
 
-    private static EdgeType GetEdgeType(float[] brickPosition, float[] activeBallPosition) {
-        if (Math.abs(brickPosition[Y] - activeBallPosition[Y]) <= Math.abs(brickPosition[X] - activeBallPosition[X])) {
-            if (activeBallPosition[X] < brickPosition[X])
-                return EdgeType.LEFT;
-            return EdgeType.RIGHT;
-        }
-        if (activeBallPosition[Y] < brickPosition[Y])
-            return EdgeType.BOTTOM;
-        return EdgeType.TOP;
-    }
-
 
     public static void Init() {
         {
-            float norm = (float) Math.sqrt(Math.pow(BrickNetwork.brickSize[X], 2) + Math.pow(BrickNetwork.brickSize[Y], 2));
-            cornerNormal.put(CornerType.BOTTOM_LEFT, new float[]{-BrickNetwork.brickSize[X] / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f});
-            cornerNormal.put(CornerType.BOTTOM_RIGHT, new float[]{BrickNetwork.brickSize[X] / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f});
-            cornerNormal.put(CornerType.TOP_LEFT, new float[]{-BrickNetwork.brickSize[X] / norm, BrickNetwork.brickSize[Y] / norm, 0.0f});
-            cornerNormal.put(CornerType.TOP_RIGHT, new float[]{BrickNetwork.brickSize[X] / norm, BrickNetwork.brickSize[Y] / norm, 0.0f});
+            float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+            float norm = (float) Math.sqrt(Math.pow(BrickNetwork.brickSize[X] / screenRatio, 2) + Math.pow(BrickNetwork.brickSize[Y], 2));
+            cornerNormal.put(CornerType.BOTTOM_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            cornerNormal.put(CornerType.BOTTOM_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            cornerNormal.put(CornerType.TOP_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            cornerNormal.put(CornerType.TOP_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
         }
 
-        edgeNormal.put(EdgeType.BOTTOM, new float[] {0.0f, -1.0f, 0.0f});
-        edgeNormal.put(EdgeType.LEFT, new float[] {-1.0f, 0.0f, 0.0f});
-        edgeNormal.put(EdgeType.TOP, new float[] {0.0f, 1.0f, 0.0f});
-        edgeNormal.put(EdgeType.RIGHT, new float[] {1.0f, 0.0f, 0.0f});
+        edgeNormal.put(EdgeType.BOTTOM, new float[] {0.0f, -1.0f, 0.0f, 1.0f});
+        edgeNormal.put(EdgeType.LEFT, new float[] {-1.0f, 0.0f, 0.0f, 1.0f});
+        edgeNormal.put(EdgeType.TOP, new float[] {0.0f, 1.0f, 0.0f, 1.0f});
+        edgeNormal.put(EdgeType.RIGHT, new float[] {1.0f, 0.0f, 0.0f, 1.0f});
     }
 }

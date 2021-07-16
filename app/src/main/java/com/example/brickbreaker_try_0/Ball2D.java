@@ -22,11 +22,17 @@ public class Ball2D extends Shape {
     }
 
     public void Travel() {
+        float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
         float[] velocity = new float[] {
-                GameStatus.ballDirection[X] * GameStatus.ballSpeed,
+                GameStatus.ballDirection[X] * screenRatio * GameStatus.ballSpeed,
                 GameStatus.ballDirection[Y] * GameStatus.ballSpeed,
                 0.0f
         };
         Matrix.translateM(modelMatrix, 0, velocity[X], velocity[Y], 0.0f);
+    }
+
+    public void ResetBallStatus() {
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, initialPosition[X], initialPosition[Y], initialPosition[Z]);
     }
 }

@@ -5,22 +5,24 @@ import android.opengl.Matrix;
 import java.util.ArrayList;
 
 public class ShapeFactory {
-    private static float DEG2RAD = 3.14159f / 180.0f;
     private static final int X = 0, Y = 1;
 
-    public static Shape Create2DBall(float radius, int edgesNumber, float[] color) {
+    public static Shape Create2DEquilateralPolygon(float radius, int edgesNumber, boolean adjustSizeByScreenRatio, float[] color) {
         VertexFormat[] vertices = new VertexFormat[edgesNumber + 2];
         short[] indices = new short[(edgesNumber + 1) * 3];
         float[] center = new float[]{0.0f, 0.0f, 0.0f}; // We ignore this when checking for collisions! (based on the consideration that origin is at (0,0,0))
         float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+        float adjustX = adjustSizeByScreenRatio
+                ? screenRatio
+                : 1.0f;
 
         vertices[0] = new VertexFormat(center, color);
         int vIdx = 1;
         for (float angle = 0.0f; angle <= 360.0f; angle += 360.0f / (float)edgesNumber) {
-            float angleRad = angle * DEG2RAD;
+            float angleRad = angle * MyMath.deg2Rad;
             vertices[vIdx++] = new VertexFormat(
                     new float[] {
-                            (center[0] + (float)Math.cos(angleRad) * radius) * screenRatio,
+                            (center[0] + (float)Math.cos(angleRad) * radius) * adjustX,
                             center[1] + (float)Math.sin(angleRad) * radius,
                             center[2]},
                     color
@@ -146,20 +148,69 @@ public class ShapeFactory {
         //short[] iss = ConvertIntToShortArray(indices);
         //System.out.println("vs length = " + vs.length + " and iss length = " + iss.length);
         //Shape2D s = new Shape2D(ConvertListToArray(vertices), ConvertIntToShortArray(indices));
+
         return new Shape(ConvertListToArray(vertices), ConvertIntToShortArray(indices));
     }
 
     public static Brick CreateBrick(float[] edge, float[] color, int index) {
+        Shape rectangle = CreateRectangle(edge[X], edge[Y], false, color);
+        return new Brick(rectangle.vertices, rectangle.indices, index);
+    }
+
+    public static Powerup CreatePowerup(Powerup.FunctionalType functionalType, Powerup.ShapeType shapeType, float edgeSize, float[] color, int index) {
+        // no need to adjust X size by the screen ratio, because of the adjusting scaling transform applied during the powerup's Update() method
+        Shape powerupShape;
+        switch (shapeType) {
+            case POLYGON:
+                powerupShape = Create2DEquilateralPolygon(ValueSheet.powerupPolygonEdge, 5, false, color);
+                break;
+            case SQUARE:
+                powerupShape = CreateRectangle(0.1f, ValueSheet.powerupSquareEdge, false, color);
+                break;
+            default:    // case TRIANGLE:
+                powerupShape = CreateEquilateralTriangle(ValueSheet.powerupTriangleEdge, false, color);
+        }
+        //Shape rectangle = CreateRectangle(edgeSize, edgeSize, false, color);
+        return new Powerup(powerupShape.vertices, powerupShape.indices, functionalType, shapeType, index, color);
+    }
+
+    public static Shape CreateRectangle(float sizeX, float sizeY, boolean adjustSizeByScreenRatio, float[] color) {
+        float adjustedSizeX = sizeX;
+        if (adjustSizeByScreenRatio) {
+            float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+            adjustedSizeX *= screenRatio;
+        }
+
         VertexFormat[] vertices = new VertexFormat[]{
-                new VertexFormat(new float[]{-edge[X] / 2.0f, -edge[Y] / 2.0f, 0}, color),
-                new VertexFormat(new float[]{-edge[X] / 2.0f, edge[Y] / 2.0f, 0}, color),
-                new VertexFormat(new float[]{edge[X] / 2.0f, -edge[Y] / 2.0f, 0}, color),
-                new VertexFormat(new float[]{edge[X] / 2.0f, edge[Y] / 2.0f, 0}, color),
+                new VertexFormat(new float[]{-adjustedSizeX / 2.0f, -sizeY / 2.0f, 0}, color),
+                new VertexFormat(new float[]{-adjustedSizeX / 2.0f, sizeY / 2.0f, 0}, color),
+                new VertexFormat(new float[]{adjustedSizeX / 2.0f, -sizeY / 2.0f, 0}, color),
+                new VertexFormat(new float[]{adjustedSizeX / 2.0f, sizeY / 2.0f, 0}, color),
         };
         short[] indices = new short[]{
                 0, 2, 1, 1, 2, 3
         };
-        return new Brick(vertices, indices, index);
+
+        return new Shape(vertices, indices);
+    }
+
+    public static Shape CreateEquilateralTriangle(float edge, boolean adjustSizeByScreenRatio, float color[]) {
+        float triangleHeight = edge * (float)Math.sqrt(3.0f) / 2.0f;
+        float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+        float adjustedX = adjustSizeByScreenRatio
+                ? screenRatio * edge
+                : edge;
+
+        VertexFormat[] vertices = new VertexFormat[]{
+                new VertexFormat(new float[] {0.0f, triangleHeight * 2.0f / 3.0f, 0}, color),
+                new VertexFormat(new float[] {adjustedX / 2.0f, -triangleHeight / 3.0f, 0}, color),
+                new VertexFormat(new float[] {-adjustedX / 2.0f, -triangleHeight / 3.0f, 0}, color)
+        };
+        short[] indices = new short[]{
+                0, 2, 1
+        };
+
+        return new Shape(vertices, indices);
     }
 
     private static VertexFormat[] ConvertListToArray(ArrayList<VertexFormat> al) {

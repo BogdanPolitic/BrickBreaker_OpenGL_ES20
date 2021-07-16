@@ -8,14 +8,15 @@ import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 
 import androidx.constraintlayout.widget.Guideline;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MyGLSurfaceView extends GLSurfaceView {
     MyGLRenderer myGLRenderer;
-    private float previousX, previousY;
     public static float screenHeight, screenWidth;
     private float guideLinePercent = 0.1f;
     //private Guideline guideLine;
     private final int X = 0, Y = 1, Z = 2;
+    public static boolean platformPositionLock = false;
 
     public MyGLSurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -42,26 +43,9 @@ public class MyGLSurfaceView extends GLSurfaceView {
         float x = e.getX();
         float y = e.getY();
 
-        switch (e.getAction()) {
-            case MotionEvent.ACTION_MOVE:
-                float dx = 2.0f * (x - previousX) / screenWidth;
-                float dy = 2.0f * (y - previousY) / screenHeight;    // the height of MyGLSurface window is less (thus, different) than the screenHeight
-
-                {
-                    Shape platform = myGLRenderer.shapes.get("Platform");
-                    float[] platformPosition = platform.GetShapePosition();
-                    platform.SetShapePosition(new float[] {
-                            MyMath.Clamp(2.0f * x / screenWidth - 1.0f, -1.0f, 1.0f),
-                            platformPosition[Y],
-                            0.0f
-                    });
-                }
-
-                requestRender();
-        }
-
-        previousX = x;
-        previousY = y;
+        platformPositionLock = true;
+        MyGLRenderer.UpdatePlatformPosition(x);
+        platformPositionLock = false;
 
         return true;
     }

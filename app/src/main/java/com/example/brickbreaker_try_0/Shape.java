@@ -37,7 +37,7 @@ public class Shape {
     ShortBuffer triangleISB;    // Indices Short Buffer
     ByteBuffer triangleIBB;     // Indices Byte Buffer
 
-    private void UpdateBuffers() {
+    public void UpdateBuffers() {
         triangleVPBB = ByteBuffer.allocateDirect(vertices.length * VertexFormat.POSITION_LENGTH * SizeOf.sizeOf(float.class));
         triangleVPBB.order(ByteOrder.nativeOrder());
         triangleVPFB = triangleVPBB.asFloatBuffer();
@@ -103,8 +103,14 @@ public class Shape {
         Matrix.translateM(modelMatrix, 0, newPosition[X], newPosition[Y], newPosition[Z]);
     }
 
-    public void draw(int shaderProgram, boolean draw3D) {
+    public void draw(int shaderProgram, boolean draw3D, boolean enableBlending) {
         GLES20.glUseProgram(shaderProgram);
+
+        if (enableBlending) {
+            GLES20.glEnable(GLES20.GL_BLEND);
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+            GLES20.glBlendEquation(GLES20.GL_FUNC_ADD);
+        }
 
         positionHandle = GLES20.glGetAttribLocation(shaderProgram, "vPosition");
         GLES20.glEnableVertexAttribArray(positionHandle);
@@ -131,5 +137,14 @@ public class Shape {
 
         GLES20.glDisableVertexAttribArray(positionHandle);
         GLES20.glDisableVertexAttribArray(colorHandle);
+
+        if (enableBlending)
+            GLES20.glDisable(GLES20.GL_BLEND);
+    }
+
+    protected void ChangeShapeColor(float[] newColor) {
+        for (int i = 0; i < vertices.length; i++) {
+            vertices[i] = new VertexFormat(vertices[i].position, newColor);
+        }
     }
 }

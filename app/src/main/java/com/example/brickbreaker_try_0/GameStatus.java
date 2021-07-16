@@ -9,27 +9,34 @@ public class GameStatus {
         FLOATING,
         LOST
     }
+    private static int X = 0, Y = 1, Z = 2;
 
     public static float glWindowWidth;
     public static float glWindowHeight;
     public static long time;
+    public static int deltaTime;
 
-    public static int remainingBallsCount = 5;
+    public static float platformSpeed = 0.1f;  // [0.0f, 1.0f]
+
+    public static int supplyBallsCount = 5;
     public static BallStatus ballStatus = BallStatus.ON_PLATFORM;
     public static float ballSpeed = 0.01f;
-    public static float[] ballDirection = new float[] {0.0f, 1.0f, 0.0f};
+    public static float[] ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
     // We get the real velocity by multiplying the direction with the amount of speed.
 
+    public static int remainingBricksCount;
     public static long brickShrinkingAwayDuration = 500l;    // milliseconds
 
+    public static long powerupDroppingDefaultDuration = 2500l;  // milliseconds
+    public static long powerupStickingToPlatformDuration = 1500l;   // milliseconds
+
     public static int ActiveBallId() {
-        return remainingBallsCount;
+        return supplyBallsCount;
     }
 
     public static void NormalizeDirection() {
-        int X = 0, Y = 1;
         float norm = (float)Math.sqrt(Math.pow(ballDirection[X], 2) + Math.pow(ballDirection[Y], 2));
-        ballDirection = new float[] {ballDirection[X] / norm, ballDirection[Y] / norm, 0.0f};
+        ballDirection = new float[] {ballDirection[X] / norm, ballDirection[Y] / norm, 0.0f, 1.0f};
     }
 
     public static void OnWindowChanged(float newWidth, float newHeight) {
@@ -38,28 +45,23 @@ public class GameStatus {
     }
 
     public static void UpdateTime() {
-        time = SystemClock.uptimeMillis() % 10000000L;
-    }
-
-    public static void RestartGame() {
-        remainingBallsCount = 5;
-        ballStatus = BallStatus.ON_PLATFORM;
-        ballSpeed = 0.01f;
-        ballDirection = new float[] {0.0f, 1.0f, 0.0f};
+        long newTime = SystemClock.uptimeMillis() % 10000000L;
+        deltaTime = (int)(newTime - time);
+        time = newTime;
     }
 
     public static void UnloadCurrentAndLoadNextBall() {
-        /*if (remainingBricksCount == 0) {
+        if (remainingBricksCount == 0) {
             OnGameWon();
             return;
-        }*/
+        }
 
-        if (remainingBallsCount == 0) {
+        if (supplyBallsCount == 0) {
             OnGameLost();
             return;
         }
 
-        remainingBallsCount--;
+        supplyBallsCount--;
         ballStatus = BallStatus.ON_PLATFORM;
         ballDirection = new float[] {0.0f, 1.0f, 0.0f};
     }
@@ -75,5 +77,16 @@ public class GameStatus {
 
     public static void OnGameWon() {
         System.out.println("Game won!");
+    }
+
+    public static void RestartGame() {
+        ballStatus = BallStatus.ON_PLATFORM;
+        ballSpeed = 0.01f;
+        ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
+
+        MyGLRenderer.ResetBrickNetwork();
+        MyGLRenderer.ResetPowerups();
+        MyGLRenderer.ResetBalls();
+        MyGLRenderer.ResetPlatform();
     }
 }

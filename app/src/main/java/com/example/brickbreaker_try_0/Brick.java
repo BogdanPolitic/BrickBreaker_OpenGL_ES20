@@ -23,6 +23,13 @@ public class Brick extends Shape {
         this.index = index;
         status = Status.ON;
         AttachToOwnPosition();
+
+        if (index == 0)
+            System.out.println("brick init pos = " + BrickNetwork.Position(Y, index));
+    }
+
+    public int GetIndex() {
+        return index;
     }
 
     public void StartShrinking() {
@@ -42,13 +49,18 @@ public class Brick extends Shape {
                 return;
             }
 
-            Matrix.setIdentityM(modelMatrix, 0);
             AttachToOwnPosition();
             Matrix.scaleM(modelMatrix, 0, 1.0f - shrinkingPercent, 1.0f - shrinkingPercent, 1.0f - shrinkingPercent);
         }
     }
 
+    public void ResetBrickStatus() {
+        status = Status.ON;
+        AttachToOwnPosition();
+    }
+
     private void AttachToOwnPosition() {
+        Matrix.setIdentityM(modelMatrix, 0);
         Matrix.translateM(modelMatrix, 0, BrickNetwork.Position(X, index), BrickNetwork.Position(Y, index), 0.0f);
         Matrix.scaleM(modelMatrix, 0, BrickNetwork.scale[X], BrickNetwork.scale[Y], 1.0f);
     }

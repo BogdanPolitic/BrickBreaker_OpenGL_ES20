@@ -21,8 +21,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     public static HashMap<String, Shape> shapes = new HashMap<String, Shape>();
     public static float[] orthoMatrix = new float[16];
     public static float[] viewMatrix = new float[16];
-    private final int X = 0;
-    private final int Y = 1;
+    private static final int X = 0;
+    private static final int Y = 1;
 
     private Context context;
 
@@ -100,13 +100,14 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             shaderPrograms.put("Ball3DShape", createShaderProgram(vertexShader, fragmentShader));
         }
 
-        Collisions.Init();
+        GameStatus.remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
     }
 
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {  // primul onSurfaceChanged are call-ul cam cu 2ms (nesemnificativ) mai tarziu decat onSurfaceCreated
         GLES20.glViewport(0, 0, width, height);
         GameStatus.OnWindowChanged((float)width, (float)height);
+        Collisions.Init();
 
         {
             float[] colorTop = new float[]{1, 0, 0, 1};
@@ -187,30 +188,35 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
 
         {
-            for (int ballId = 0; ballId < GameStatus.remainingBallsCount; ballId++) {
-                Shape ballShape = ShapeFactory.Create2DBall(ValueSheet.ballRadius, ValueSheet.ballEdgesNumber, new float[]{1, 0, 1, 1});
+            for (int ballId = 0; ballId < GameStatus.supplyBallsCount; ballId++) {
+                Shape ballShape = ShapeFactory.Create2DEquilateralPolygon(ValueSheet.ballRadius, ValueSheet.ballEdgesNumber, true, new float[]{1, 0, 1, 1});
                 shapes.put("Ball2D" + ballId,
                         new Ball2D(
                                 ballShape.vertices,
                                 ballShape.indices,
-                                new float[]{-0.97f + 0.06f * ballId, -1.0f + ValueSheet.groundBorderHeight - 0.07f, 0},
+                                new float[]{
+                                        ValueSheet.supplyBallsOffsetFromBorder + ValueSheet.distanceBetweenSupplyBalls * ballId,
+                                        -1.0f + ValueSheet.groundBorderHeight - ValueSheet.supplyBallsDepthUnderPlatform,
+                                        0
+                                },
                                 new float[]{0, 0, 0}
-                                )
+                        )
                 );
-                Shape ball3DShape = ShapeFactory.Create3DBall(1.0f, 3, new float[]{1.0f, 0.0f, 1.0f, 1.0f}, 1);
+                /*Shape ball3DShape = ShapeFactory.Create3DBall(1.0f, 3, new float[]{1.0f, 0.0f, 1.0f, 1.0f}, 1);
                 shapes.put("Ball3D", new Ball3D(
                         ball3DShape.vertices,
                         ball3DShape.indices,
                         new float[]{-0.95f * 0, -1.0f + ValueSheet.groundBorderHeight + 0.05f, 0},
                         new float[]{0, 0, 0})
-                );
+                );*/
             }
 
-            Shape ballShape = ShapeFactory.Create2DBall(
+            Shape ballShape = ShapeFactory.Create2DEquilateralPolygon(
                     ValueSheet.ballRadius,
                     ValueSheet.ballEdgesNumber,
+                    true,
                     new float[]{1, 0, 1, 1}
-                    );
+            );
             Ball2D activeBall = new Ball2D(
                     ballShape.vertices,
                     ballShape.indices,
@@ -226,24 +232,34 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                     new float[]{1.0f, 0.0f, 0.0f, 1.0f}, brickIdx
             );
             shapes.put("Brick" + brickIdx, brick);
+
+            // for a less than 100% chance of generating powerups, null conditions SHOULD be implemented at each powerup access!
+            if (MyRandom.ChanceForFact(100)) {
+                Powerup powerup = ShapeFactory.CreatePowerup(
+                        MyRandom.GetRandomFunctionalType(),
+                        MyRandom.GetRandomShapeType(),
+                        BrickNetwork.brickSize[Y] / 2.0f,
+                        MyRandom.GetRandomPowerupColor(),
+                        brickIdx);
+                shapes.put("Powerup" + brickIdx, powerup);
+            }
         }
     }
 
     @Override
-    public void onDrawFrame(GL10 gl) {
+    public synchronized void onDrawFrame(GL10 gl) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GameStatus.UpdateTime();
-        //GameStatus.NormalizeDirection();
 
-        shapes.get("BorderLeft").draw(shaderPrograms.get("Simple2DShape"), false);
-        shapes.get("BorderRight").draw(shaderPrograms.get("Simple2DShape"), false);
-        shapes.get("BorderTop").draw(shaderPrograms.get("Simple2DShape"), false);
-        shapes.get("BorderGround").draw(shaderPrograms.get("Simple2DShape"), false);
-        shapes.get("Platform").draw(shaderPrograms.get("Simple2DShape"), false);
+        shapes.get("BorderLeft").draw(shaderPrograms.get("Simple2DShape"), false, false);
+        shapes.get("BorderRight").draw(shaderPrograms.get("Simple2DShape"), false, false);
+        shapes.get("BorderTop").draw(shaderPrograms.get("Simple2DShape"), false, false);
+        shapes.get("BorderGround").draw(shaderPrograms.get("Simple2DShape"), false, false);
+        shapes.get("Platform").draw(shaderPrograms.get("Simple2DShape"), false, false);
         //shapes.get("Ball3D").draw(shaderPrograms.get("Ball3DShape"), true);
 
-        for (int ballId = 0; ballId < GameStatus.remainingBallsCount; ballId++) {
-            shapes.get("Ball2D" + ballId).draw(shaderPrograms.get("Simple2DShape"), false);
+        for (int ballId = 0; ballId < GameStatus.supplyBallsCount; ballId++) {
+            shapes.get("Ball2D" + ballId).draw(shaderPrograms.get("Simple2DShape"), false, false);
         }
 
         {
@@ -251,8 +267,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
             switch (GameStatus.ballStatus) {
                 case ON_PLATFORM:
-                    activeBall.SetShapePosition(shapes.get("Platform").GetShapePosition());
-                    Matrix.translateM(activeBall.modelMatrix, 0, 0.0f, ValueSheet.ballHeightRelativeToPlatform, 0.0f);
+                    if (!MyGLSurfaceView.platformPositionLock) {
+                        activeBall.SetShapePosition(shapes.get("Platform").GetShapePosition());
+                        Matrix.translateM(activeBall.modelMatrix, 0, 0.0f, ValueSheet.ballHeightRelativeToPlatform, 0.0f);
+                    }
                     break;
                 case FLOATING:
                     ((Ball2D)activeBall).Travel();
@@ -266,20 +284,79 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             }
 
             if (GameStatus.ballStatus != GameStatus.BallStatus.LOST)
-                activeBall.draw(shaderPrograms.get("Simple2DShape"), false);
+                activeBall.draw(shaderPrograms.get("Simple2DShape"), false, false);
 
             Collisions.CheckForBrickCollisions();
             Collisions.CheckForBrickCornerCollisions();
             Collisions.CheckForBrickStraightEdgeCollisions();
             Collisions.ApplyBrickCollisions();
+            Collisions.FreeCollisionData();
         }
 
         for (int brickId = 0; brickId < BrickNetwork.size[X] * BrickNetwork.size[Y]; brickId++) {
             Brick brick = (Brick)shapes.get("Brick" + brickId);
             if (brick.status != Brick.Status.OFF) {
-                brick.draw(shaderPrograms.get("Simple2DShape"), false);
+                brick.draw(shaderPrograms.get("Simple2DShape"), false, false);
                 brick.Update();
             }
+
+            if (shapes.containsKey("Powerup" + brickId)) {
+                Powerup powerup = (Powerup) shapes.get("Powerup" + brickId);
+                if (powerup.status != Powerup.Status.OFF) {
+                    powerup.draw(shaderPrograms.get("Simple2DShape"), false, powerup.enableBlending);
+                    powerup.Update();
+                }
+            }
         }
+    }
+
+    public static void ResetBrickNetwork() {
+        GameStatus.remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
+        for (int brickIdx = 0; brickIdx < BrickNetwork.size[X] * BrickNetwork.size[Y]; brickIdx++) {
+            ((Brick)shapes.get("Brick" + brickIdx)).ResetBrickStatus();
+        }
+    }
+
+    public static void ResetPowerups() {
+        for (int powerupIdx = 0; powerupIdx < BrickNetwork.size[X] * BrickNetwork.size[Y]; powerupIdx++) {
+            Powerup powerup = ShapeFactory.CreatePowerup(
+                    MyRandom.GetRandomFunctionalType(),
+                    MyRandom.GetRandomShapeType(),
+                    BrickNetwork.brickSize[Y] / 2.0f,
+                    MyRandom.GetRandomPowerupColor(),
+                    powerupIdx);
+            shapes.put("Powerup" + powerupIdx, powerup);
+        }
+    }
+
+    public static void ResetBalls() {
+        GameStatus.supplyBallsCount = 5;
+        for (int ballId = 0; ballId < GameStatus.supplyBallsCount; ballId++) {
+            ((Ball2D)shapes.get("Ball2D" + ballId)).ResetBallStatus();
+        }
+    }
+
+    public static void ResetPlatform() {
+        Shape platform = shapes.get("Platform");
+        if (!MyGLSurfaceView.platformPositionLock) {
+            platform.SetShapePosition(new float[]{
+                    0.1f,
+                    platform.GetShapePosition()[Y],
+                    0.0f,
+                    1.0f
+            });
+        }
+    }
+
+    public static void UpdatePlatformPosition(float inputXAxis) {
+        Shape platform = shapes.get("Platform");
+        float[] platformPosition = platform.GetShapePosition();
+        float normalizedTouchXPosition = 2.0f * inputXAxis / GameStatus.glWindowWidth - 1.0f;
+        float newXPosition = platformPosition[X] + GameStatus.platformSpeed * (normalizedTouchXPosition - platformPosition[X]);
+        platform.SetShapePosition(new float[] {
+                MyMath.Clamp(newXPosition, -1.0f, 1.0f),
+                platformPosition[Y],
+                0.0f
+        });
     }
 }
