@@ -1,15 +1,41 @@
 package com.example.brickbreaker_try_0;
 
 import android.os.SystemClock;
+import android.renderscript.Sampler;
+
+import com.example.brickbreaker_try_0.Bonifications.Bonifications;
+
+import java.util.ArrayList;
 
 public class GameStatus {
+    enum GameState {
+        IN_PLAY,
+        LOST,
+        WON
+    }
+
+    enum AppState {
+        INGAME,
+        WONGAME_POPUP,
+        LOSTGAME_POPUP,
+        WONGAME,
+        LOSTGAME,
+        WONGAME_POPOFF,
+        LOSTGAME_POPOFF
+    }
+
     // BallStatus count on the currently active ball
     enum BallStatus {
         ON_PLATFORM,
         FLOATING,
         LOST
     }
-    private static int X = 0, Y = 1, Z = 2;
+
+    public static AppState appState;
+    public static GameState gameState;
+
+    public static int score = 0;
+    public static int bestScore = 0;
 
     public static float glWindowWidth;
     public static float glWindowHeight;
@@ -18,9 +44,10 @@ public class GameStatus {
 
     public static float platformSpeed = 0.1f;  // [0.0f, 1.0f]
 
-    public static int supplyBallsCount = 5;
+    public static int supplyBallsCount;
     public static BallStatus ballStatus = BallStatus.ON_PLATFORM;
     public static float ballSpeed = 0.01f;
+    public static float initialBallSpeed = 0.01f;
     public static float[] ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
     // We get the real velocity by multiplying the direction with the amount of speed.
 
@@ -29,6 +56,12 @@ public class GameStatus {
 
     public static long powerupDroppingDefaultDuration = 2500l;  // milliseconds
     public static long powerupStickingToPlatformDuration = 1500l;   // milliseconds
+
+    public static Bonifications bonifications;
+
+    private static int X = 0, Y = 1, Z = 2;
+    private static long popupTimer, popoffTimer;
+    private static float poppingPercent;
 
     public static int ActiveBallId() {
         return supplyBallsCount;
@@ -51,13 +84,8 @@ public class GameStatus {
     }
 
     public static void UnloadCurrentAndLoadNextBall() {
-        if (remainingBricksCount == 0) {
-            OnGameWon();
-            return;
-        }
-
         if (supplyBallsCount == 0) {
-            OnGameLost();
+            OnGameLostPopup();
             return;
         }
 
@@ -71,22 +99,151 @@ public class GameStatus {
         ballStatus = BallStatus.FLOATING;
     }
 
-    public static void OnGameLost() {
+    public static void InitBonifications() {
+        bonifications = new Bonifications();
+        bonifications.Init();
+    }
+
+    public static void ApplyBonuses() {
+        bonifications.ApplyBonuses();
+    }
+
+    public static void RevertBonuses() {
+        ValueSheet.platformHeight = ValueSheet.initialPlatformHeight;
+        ValueSheet.platformWidth = ValueSheet.initialPlatformWidth;
+        ballSpeed = initialBallSpeed;
+
+        ((Platform)MyGLRenderer.shapes.get("Platform")).ChangeSizeCoord(X, ValueSheet.initialPlatformWidth);
+        ((Platform)MyGLRenderer.shapes.get("Platform")).ChangeSizeCoord(Y, ValueSheet.initialPlatformHeight);
+    }
+
+    public static void OnGameLostPopup() {
         System.out.println("Game lost!");
+        ballDirection = new float[] {0.0f, 0.0f, 0.0f, 1.0f};
+        MainActivity.GetInstance().OnGameLostPopup();
+        appState = AppState.LOSTGAME_POPUP;
+        gameState = GameState.LOST;
+        popupTimer = InterpolationTimer.AddTimer(ValueSheet.windowPopDuration);
     }
 
-    public static void OnGameWon() {
+    public static void OnGameWonPopup() {
         System.out.println("Game won!");
+        if (score > bestScore)
+            bestScore = score;
+        ballDirection = new float[] {0.0f, 0.0f, 0.0f, 1.0f};
+        MainActivity.GetInstance().OnGameWonPopup();
+        appState = AppState.WONGAME_POPUP;
+        gameState = GameState.WON;
+        popupTimer = InterpolationTimer.AddTimer(ValueSheet.windowPopDuration);
     }
 
-    public static void RestartGame() {
+    private static ArrayList<ScoreAnimation> scoreTriggers = new ArrayList<ScoreAnimation>();
+
+    public static void AddToScore(int points) {
+        score += points;
+        MainActivity.GetInstance().SetScore(score);
+        scoreTriggers.add(new ScoreAnimation());
+    }
+
+    public static void UpdateScoreFont() {
+        if (scoreTriggers == null || scoreTriggers.size() == 0)
+            return;
+
+        // this new list will swap with the old one at each frame, because deleting multiple elements from a list is difficult
+        ArrayList<ScoreAnimation> scoreTriggersSwap = new ArrayList<ScoreAnimation>();
+        float scoreFontScale = (int)(float)ValueSheet.scoreFontScaleX.min;
+        float scoreFontColor = (int)(float)ValueSheet.scoreColor.min;
+        for (ScoreAnimation scoreAnimation : scoreTriggers) {
+            scoreAnimation.UpdateScoreFontSize();
+            scoreFontScale = MyMath.Clamp(
+                    scoreFontScale + scoreAnimation.currentFont - ValueSheet.scoreFontScaleX.min,
+                    ValueSheet.scoreFontScaleX.min,
+                    ValueSheet.scoreFontScaleX.max
+            );
+            scoreFontColor = MyMath.Clamp(
+                    scoreFontColor + scoreAnimation.currentColor - ValueSheet.scoreColor.min,
+                    ValueSheet.scoreColor.min,
+                    ValueSheet.scoreColor.max
+            );
+            if (!scoreAnimation.RequiresDestruction())
+                scoreTriggersSwap.add(scoreAnimation);
+        }
+        scoreTriggers = scoreTriggersSwap;
+        MainActivity.GetInstance().SetScoreScale(scoreFontScale);
+        MainActivity.GetInstance().SetScoreColor((int)scoreFontColor + (0xFF << 24));
+    }
+
+    public static void RestartGame(boolean inputFromInPlay) {
+        score = 0;
+        MainActivity.GetInstance().SetScore(score);
         ballStatus = BallStatus.ON_PLATFORM;
         ballSpeed = 0.01f;
         ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
+        supplyBallsCount = ValueSheet.initialSupplyBallsCount;
 
         MyGLRenderer.ResetBrickNetwork();
         MyGLRenderer.ResetPowerups();
         MyGLRenderer.ResetBalls();
         MyGLRenderer.ResetPlatform();
+        RevertBonuses();
+
+        if (!inputFromInPlay) {
+            appState = (appState == AppState.LOSTGAME) ? AppState.LOSTGAME_POPOFF : AppState.WONGAME_POPOFF;
+            popoffTimer = InterpolationTimer.AddTimer(ValueSheet.windowPopDuration);
+        }
+    }
+
+    public static void Init() {
+        appState = AppState.INGAME;
+        gameState = GameState.IN_PLAY;
+        GameStatus.remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
+        supplyBallsCount = ValueSheet.initialSupplyBallsCount;
+        MainActivity.GetInstance().SetScore(GameStatus.score);
+    }
+
+    public static void Update() {
+        UpdateTime();
+        UpdateScoreFont();
+
+        ApplyBonuses();
+
+        if (gameState == GameState.IN_PLAY && remainingBricksCount == 0)
+            OnGameWonPopup();
+
+        switch (appState) {
+            case LOSTGAME_POPUP:
+                poppingPercent = InterpolationTimer.GetPercent(popupTimer);
+                MainActivity.GetInstance().SetWindowSize(poppingPercent);
+                if (poppingPercent == 1.0f)
+                    appState = AppState.LOSTGAME;
+                break;
+            case WONGAME_POPUP:
+                poppingPercent = InterpolationTimer.GetPercent(popupTimer);
+                MainActivity.GetInstance().SetWindowSize(poppingPercent);
+                if (poppingPercent == 1.0f)
+                    appState = AppState.WONGAME;
+                break;
+            case LOSTGAME:
+                MainActivity.GetInstance().OnGameLost();
+                //InterpolationTimer.ClearAllTimers();
+                break;
+            case WONGAME:
+                MainActivity.GetInstance().OnGameWon();
+                //InterpolationTimer.ClearAllTimers();
+                break;
+            case LOSTGAME_POPOFF:
+            case WONGAME_POPOFF:
+                poppingPercent = InterpolationTimer.GetPercent(popoffTimer);
+                MainActivity.GetInstance().SetWindowSize(1.0f - poppingPercent);
+                if (poppingPercent == 1.0f) {
+                    appState = AppState.INGAME;
+                    gameState = GameState.IN_PLAY;
+                }
+                break;
+            default:
+                break;
+        }
+
+        InterpolationTimer.Update();
     }
 }

@@ -22,17 +22,17 @@ public class Powerup extends Shape {
         OFF
     }
 
-    private FunctionalType powerupFunctionalType;
-    private ShapeType powerupShapeType;
-    private float[] homogenousColor;
+    private final FunctionalType powerupFunctionalType;
+    private final ShapeType powerupShapeType;
+    private final float[] homogenousColor;
     public boolean enableBlending;
     public Status status;
-    private long droppingStart;
-    private float droppingDescentSpeed;
-    private float droppingRotationSpeedDeg;
+    private final float droppingDescentSpeed;
+    private final float droppingRotationSpeedDeg;
     private float offsetXOnPlatform;
-    private long gettingOnPlatformTimestamp;
-    private Brick brickTrigger;
+    private final Brick brickTrigger;
+    private long droppingTimer;
+    private long opacityTimer;
 
     // in modelMatrix1 there are all the transformations, except the one which translates the powerup with the X coordinate of its corresponding brick (or its own initial position)
     // modelMatrix1 is needed for offsetting the powerup to the platform when it comes sticking on it (when the player GETS the powerup). Any missed powerup will instatly disappear after exceeding the low Y limit
@@ -75,29 +75,33 @@ public class Powerup extends Shape {
             return;
 
         status = Status.DROPPING;
-        droppingStart = GameStatus.time;
+        droppingTimer = InterpolationTimer.AddTimer(GameStatus.powerupDroppingDefaultDuration);
     }
 
     public void Update() {
         if (status == Status.DROPPING) {
-            float droppingTransformArg = droppingRotationSpeedDeg
-                    * (float)(GameStatus.time - droppingStart)
-                    / (float)GameStatus.powerupDroppingDefaultDuration;
-            float droppingPercentage = (float)(GameStatus.time - droppingStart) * droppingDescentSpeed / (float)GameStatus.powerupDroppingDefaultDuration;
+            float droppingPercent = InterpolationTimer.GetPercent(droppingTimer);
+            float droppingTransformArg = droppingRotationSpeedDeg * droppingPercent;
+            float droppingPercentage = droppingDescentSpeed * droppingPercent;
 
-            if (droppingPercentage > 1.0f) {
+            /*if (percent == 1.0f) {
                 status = Status.OFF;
                 return;
-            }
+            }*/
 
-            if (!IsInPlatformRange() && droppingPercentage > 1.0f) {
+            if (!IsInPlatformRange() && droppingPercent == 1.0f) {
                 status = Status.OFF;
                 return;
             } else if (IsInPlatformRange() && GetShapePosition()[Y] <= -1.0f + ValueSheet.groundBorderHeight) {
                 status = Status.ON_PLATFORM;
+                opacityTimer = InterpolationTimer.AddTimer(GameStatus.powerupStickingToPlatformDuration);
                 offsetXOnPlatform = GetOffsetXRelativeToPlatformCenter();
-                gettingOnPlatformTimestamp = GameStatus.time;
                 enableBlending = true;
+
+                ValueSheet.Interval<Float> pointsInterval = ValueSheet.powerupPoints.get(powerupFunctionalType);
+                if (pointsInterval != null)
+                    GameStatus.AddToScore(MyRandom.RandomIntInterval((int)(float)pointsInterval.min, (int)(float)pointsInterval.max));
+
                 return;
             }
 
@@ -139,12 +143,12 @@ public class Powerup extends Shape {
             Matrix.translateM(modelMatrixOnPlatform, 0, platform.GetShapePosition()[X] + offsetXOnPlatform, 0.0f, 0.0f);
             Matrix.multiplyMM(modelMatrix, 0, modelMatrixOnPlatform, 0, modelMatrix1, 0);
 
-            float opacity = 1.0f - (float)(GameStatus.time - gettingOnPlatformTimestamp) / (float)GameStatus.powerupStickingToPlatformDuration;
-            if (opacity < 0.0f) {
+            float opacityPercent = InterpolationTimer.GetPercent(opacityTimer);
+            if (opacityPercent == 1.0f) {
                 status = Status.OFF;
                 return;
             }
-            ChangeShapeColor(new float[] {homogenousColor[X], homogenousColor[Y], homogenousColor[Z], opacity});
+            ChangeShapeColor(new float[] {homogenousColor[X], homogenousColor[Y], homogenousColor[Z], 1.0f - opacityPercent});
             UpdateBuffers();
         }
     }

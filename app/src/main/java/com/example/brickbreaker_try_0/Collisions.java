@@ -68,7 +68,7 @@ public class Collisions {
         if (activeBallPosition[Y] + ValueSheet.ballRadius > 1.0f - ValueSheet.borderWidthHoriz / screenRatio)
             borderCollisions.add(Borders.TOP);
 
-        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight) {
+        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight + ValueSheet.platformHeight / 2.0f) {
             float[] platformPosition = MyGLRenderer.shapes.get("Platform").GetShapePosition();
             if (Math.abs(activeBallPosition[X] - platformPosition[X]) <= ValueSheet.platformWidth / 2.0f)
                 borderCollisions.add(Borders.PLATFORM);
@@ -114,6 +114,7 @@ public class Collisions {
                 -GameStatus.ballDirection[X],
                 0.0f
         };
+        Adjustments.AdjustBallDirection();
     }
 
     private static float GetActiveBallGridPosition(int coord) {
@@ -252,6 +253,7 @@ public class Collisions {
                     cornerNormal.get(cornersInRange.get(0).cornerType)
             );
             GameStatus.ballDirection = reflectedDirection;
+            Adjustments.AdjustBallDirection();
             GameStatus.NormalizeDirection();
             FreeCollisionData();
             return;
@@ -263,6 +265,7 @@ public class Collisions {
                     edgeNormal.get(edgesInRange.get(0).edgeType)
             );
             GameStatus.ballDirection = reflectedDirection;
+            Adjustments.AdjustBallDirection();
             GameStatus.NormalizeDirection();
         }
 

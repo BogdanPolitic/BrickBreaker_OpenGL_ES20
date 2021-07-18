@@ -8,6 +8,8 @@ import android.opengl.Matrix;
 import android.os.SystemClock;
 import android.renderscript.Byte4;
 
+import com.example.brickbreaker_try_0.Bonifications.Bonifications;
+
 import java.nio.FloatBuffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -100,7 +102,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             shaderPrograms.put("Ball3DShape", createShaderProgram(vertexShader, fragmentShader));
         }
 
-        GameStatus.remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
+        GameStatus.Init();
     }
 
     @Override
@@ -244,12 +246,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                 shapes.put("Powerup" + brickIdx, powerup);
             }
         }
+
+        GameStatus.InitBonifications();
     }
 
     @Override
     public synchronized void onDrawFrame(GL10 gl) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        GameStatus.UpdateTime();
 
         shapes.get("BorderLeft").draw(shaderPrograms.get("Simple2DShape"), false, false);
         shapes.get("BorderRight").draw(shaderPrograms.get("Simple2DShape"), false, false);
@@ -262,6 +265,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             shapes.get("Ball2D" + ballId).draw(shaderPrograms.get("Simple2DShape"), false, false);
         }
 
+        if (GameStatus.gameState == GameStatus.GameState.IN_PLAY
+        /*|| GameStatus.appState == GameStatus.AppState.LOSTGAME_POPUP
+        || GameStatus.appState == GameStatus.AppState.WONGAME_POPUP*/)
         {
             Shape activeBall = shapes.get("Ball2D" + GameStatus.ActiveBallId());
 
@@ -274,7 +280,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                     break;
                 case FLOATING:
                     ((Ball2D)activeBall).Travel();
-                    if (activeBall.GetShapePosition()[Y] < ValueSheet.platformPositionY - ValueSheet.depthUnderPlatformConsideredLost)
+                    float platformPositionY = ((Platform)shapes.get("Platform")).GetPositionY();
+                    if (activeBall.GetShapePosition()[Y] < platformPositionY - ValueSheet.depthUnderPlatformConsideredLost)
                         GameStatus.ballStatus = GameStatus.BallStatus.LOST;
                     Collisions.CheckForBorderCollisions();
                     Collisions.ApplyBorderCollisions();
@@ -294,20 +301,24 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
 
         for (int brickId = 0; brickId < BrickNetwork.size[X] * BrickNetwork.size[Y]; brickId++) {
-            Brick brick = (Brick)shapes.get("Brick" + brickId);
-            if (brick.status != Brick.Status.OFF) {
-                brick.draw(shaderPrograms.get("Simple2DShape"), false, false);
-                brick.Update();
-            }
-
             if (shapes.containsKey("Powerup" + brickId)) {
                 Powerup powerup = (Powerup) shapes.get("Powerup" + brickId);
                 if (powerup.status != Powerup.Status.OFF) {
                     powerup.draw(shaderPrograms.get("Simple2DShape"), false, powerup.enableBlending);
-                    powerup.Update();
+                    if (GameStatus.gameState == GameStatus.GameState.IN_PLAY)
+                        powerup.Update();
                 }
             }
+
+            Brick brick = (Brick)shapes.get("Brick" + brickId);
+            if (brick.status != Brick.Status.OFF) {
+                brick.draw(shaderPrograms.get("Simple2DShape"), false, false);
+                if (GameStatus.gameState == GameStatus.GameState.IN_PLAY)
+                    brick.Update();
+            }
         }
+
+        GameStatus.Update();
     }
 
     public static void ResetBrickNetwork() {
@@ -330,7 +341,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     }
 
     public static void ResetBalls() {
-        GameStatus.supplyBallsCount = 5;
+        GameStatus.supplyBallsCount = ValueSheet.initialSupplyBallsCount;
         for (int ballId = 0; ballId < GameStatus.supplyBallsCount; ballId++) {
             ((Ball2D)shapes.get("Ball2D" + ballId)).ResetBallStatus();
         }

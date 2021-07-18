@@ -26,4 +26,8 @@ public class MyRandom {
         if (chance <= 0) return false;
         return random.nextInt() <= chance;
     }
+
+    public static int RandomIntInterval(int min, int max) {
+        return min + random.nextInt() % (max - min);
+    }
 }

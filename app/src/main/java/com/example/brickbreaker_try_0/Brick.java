@@ -13,19 +13,15 @@ public class Brick extends Shape {
     private final int X = 0;
     private final int Y = 1;
 
-    private int index;
+    private final int index;
     public Status status;
-    private long shrinkingStart;
-    private Shape powerUp;
+    private long timerId;
 
     public Brick(VertexFormat[] vertices, short[] indices, int index) {
         super(vertices, indices);
         this.index = index;
         status = Status.ON;
         AttachToOwnPosition();
-
-        if (index == 0)
-            System.out.println("brick init pos = " + BrickNetwork.Position(Y, index));
     }
 
     public int GetIndex() {
@@ -37,20 +33,20 @@ public class Brick extends Shape {
             return;
 
         status = Status.SHRINKING;
-        shrinkingStart = GameStatus.time;
+        timerId = InterpolationTimer.AddTimer(GameStatus.brickShrinkingAwayDuration);
     }
 
     public void Update() {
         if (status == Status.SHRINKING) {
-            float shrinkingPercent = (GameStatus.time - shrinkingStart) / (float)GameStatus.brickShrinkingAwayDuration;
+            float percent = InterpolationTimer.GetPercent(timerId);
 
-            if (shrinkingPercent > 1.0f) {
+            if (percent == 1.0f) {
                 status = Status.OFF;
                 return;
             }
 
             AttachToOwnPosition();
-            Matrix.scaleM(modelMatrix, 0, 1.0f - shrinkingPercent, 1.0f - shrinkingPercent, 1.0f - shrinkingPercent);
+            Matrix.scaleM(modelMatrix, 0, 1.0f - percent, 1.0f - percent, 1.0f - percent);
         }
     }
 

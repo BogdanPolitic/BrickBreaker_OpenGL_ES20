@@ -11,15 +11,18 @@ import androidx.constraintlayout.widget.Guideline;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MyGLSurfaceView extends GLSurfaceView {
+    public static MyGLSurfaceView instance;
     MyGLRenderer myGLRenderer;
     public static float screenHeight, screenWidth;
     private float guideLinePercent = 0.1f;
     //private Guideline guideLine;
     private final int X = 0, Y = 1, Z = 2;
     public static boolean platformPositionLock = false;
+    public boolean gameInteractionEnabled = true;
 
     public MyGLSurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        instance = this;
 
         setEGLContextClientVersion(2);
 
@@ -38,14 +41,24 @@ public class MyGLSurfaceView extends GLSurfaceView {
         screenWidth = displayMetrics.widthPixels;
     }
 
+    public static MyGLSurfaceView GetInstance() {
+        return instance;
+    }
+
+    public void SetGameInteraction(boolean gameInteraction) {
+        gameInteractionEnabled = gameInteraction;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         float x = e.getX();
         float y = e.getY();
 
-        platformPositionLock = true;
-        MyGLRenderer.UpdatePlatformPosition(x);
-        platformPositionLock = false;
+        if (gameInteractionEnabled) {
+            platformPositionLock = true;
+            MyGLRenderer.UpdatePlatformPosition(x);
+            platformPositionLock = false;
+        }
 
         return true;
     }
