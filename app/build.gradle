@@ -7,10 +7,10 @@ android {
     buildToolsVersion "30.0.3"
 
     defaultConfig {
-        applicationId "com.example.brickbreaker_try_0"
+        applicationId "com.snOwmOtion.brickbreaker_try_0"
         minSdkVersion 16
         targetSdkVersion 30
-        versionCode 1
+        versionCode 6
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

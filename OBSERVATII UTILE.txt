@@ -1,5 +1,0 @@
-- Brick-urile NU sunt scalate dupa screenRatio. Cel mai bine ar fi sa fie scalate, dar ar trebui sa modific potential mult in special in clasa Collisions.
-- Powerup-urile SUNT scalate dupa screenRation.
-
-INTOTDEAUNA CAND INCEPI UN PROIECT DE GLES, FA UN FORMAT STANDARD DE POZITIE 3D A FIECARUI ELEMENT DIN SCENA ASA INCAT SA TINA CONT DE PORCARIA DE SCREEN RATIO!!!!!!!
-(altfel te vei chinui inutil pe parcursul implementarii interactiunilor dintre elemente si nu numai!)
