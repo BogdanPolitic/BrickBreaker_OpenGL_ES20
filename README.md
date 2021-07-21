@@ -18,6 +18,7 @@ In order to create an eye-delighting game design, there are also several types o
 - the brick's destruction
 - the platform motion
 - the powerup motion and collision with the platform
+- the text showing score points
 - a white gradient line repetitive motion over the brick network
 
 Each animation is based on a timer which spans all its life cycle and outputs the interpolation percentage (between 0 and 1) between the initial transform and the final transform.
