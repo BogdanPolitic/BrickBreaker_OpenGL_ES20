@@ -2,4 +2,4 @@
 
 
 
-![Demo](https://github.com/BogdanPolitic/Demos/blob/main/Break%20the%20Bricks%20short%20demo.gif?raw=true)
+![Demo](https://github.com/BogdanPolitic/Demos/blob/main/Break-the-Bricks-short-demo.gif?raw=true)
