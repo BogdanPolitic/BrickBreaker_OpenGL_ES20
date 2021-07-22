@@ -21,4 +21,4 @@ In order to create an eye-delighting game design, there are also several types o
 - the text showing score points
 - a white gradient line repetitive motion over the brick network
 
-Each animation is based on a self-implemented timer which spans all its life cycle and outputs the interpolation percentage (between 0 and 1) between the initial transform and the final transform.
+Each animation is based on a self-implemented timer (InterpolationTimer class) which spans all its life cycle and outputs the interpolation percentage (between 0 and 1) between the initial transform and the final transform.
