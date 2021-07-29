@@ -104,17 +104,27 @@ public class MainActivity extends AppCompatActivity {
         MyGLSurfaceView.GetInstance().SetGameInteraction(false);
         String scoreStr = "Score: " + GameStatus.score;
         String bestScoreStr = "Best score: " + GameStatus.bestScore;
-        gameWonScore.setText(scoreStr);
-        gameWonBestScore.setText(bestScoreStr);
         SwitchFadeWindow(1.0f);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                gameWonScore.setText(scoreStr);
+                gameWonBestScore.setText(bestScoreStr);
+            }
+        });
     }
 
     public void OnGameLostPopup() {
         gameInteractionEnabled = false;
         MyGLSurfaceView.GetInstance().SetGameInteraction(false);
         String bestScoreStr = "Best score: " + GameStatus.bestScore;
-        gameLostBestScore.setText(bestScoreStr);
         SwitchFadeWindow(1.0f);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                gameLostBestScore.setText(bestScoreStr);
+            }
+        });
     }
 
     public void OnGameWon() {
@@ -126,38 +136,64 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void SwitchFadeWindow(float windowSize) {
-        gameFrozenLayout.setScaleX(windowSize);
-        gameFrozenLayout.setScaleY(windowSize);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                gameFrozenLayout.setScaleX(windowSize);
+                gameFrozenLayout.setScaleY(windowSize);
+            }
+        });
     }
 
     public void SetWindowSize(float size) {
-        switch (GameStatus.appState) {
-            case LOSTGAME_POPUP:
-            case LOSTGAME_POPOFF:
-                gameLostLayout.setScaleX(size);
-                gameLostLayout.setScaleY(size);
-                break;
-            case WONGAME_POPUP:
-            case WONGAME_POPOFF:
-                gameWonLayout.setScaleX(size);
-                gameWonLayout.setScaleY(size);
-                break;
-        }
+        GameStatus.AppState appState = GameStatus.appState;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                switch (appState) {
+                    case LOSTGAME_POPUP:
+                    case LOSTGAME_POPOFF:
+                        gameLostLayout.setScaleX(size);
+                        gameLostLayout.setScaleY(size);
+                        break;
+                    case WONGAME_POPUP:
+                    case WONGAME_POPOFF:
+                        gameWonLayout.setScaleX(size);
+                        gameWonLayout.setScaleY(size);
+                        break;
+                }
+            }
+        });
     }
 
     public void SetScore(int score) {
         String totalPointsStr = "Total points: " + score;
         if (scoreTextView != null)
-            scoreTextView.setText(totalPointsStr);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    scoreTextView.setText(totalPointsStr);
+                }
+            });
     }
 
     public void SetScoreScale(float scoreScale) {
         if (scoreTextView != null)
-            scoreTextView.setScaleX(scoreScale);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    scoreTextView.setScaleX(scoreScale);
+                }
+            });
     }
 
     public void SetScoreColor(int scoreColor) {
         if (scoreTextView != null)
-            scoreTextView.setTextColor(scoreColor);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    scoreTextView.setTextColor(scoreColor);
+                }
+            });
     }
 }

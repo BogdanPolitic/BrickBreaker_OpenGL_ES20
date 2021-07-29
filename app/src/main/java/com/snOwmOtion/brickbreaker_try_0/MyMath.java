@@ -63,7 +63,7 @@ public class MyMath {
         return vRes;
     }
 
-    private static float[] VectorDifference(float[] v1, float[] v2) {
+    public static float[] VectorDifference(float[] v1, float[] v2) {
         if (v1.length != v2.length)
             return null;
 
@@ -74,10 +74,17 @@ public class MyMath {
         return vRes;
     }
 
-    public static float[] Reflect(float[] incidence, float[] normal) {
+    // Reflects angles that are less than 90 degress between the reversed incidence and the normal.
+    public static float[] ReflectSharpAngles(float[] incidence, float[] normal) {
         float[] reversedIncidence = ScalarMVector(-1.0f, incidence);
         double angleRad = Math.acos(ScalarProduct3(reversedIncidence, normal) / (Norm3(reversedIncidence) * Norm3(normal)));
         double angleDeg = angleRad / Math.PI * 180.0d;
+
+        // For angles greater than 90 degress, there SHOULD BE no visible reflection. Thus, the following operation basically nullifies the reflection.
+        // So, the reflected trajectory is the same as the incident trajectory.
+        // The released version 1.0 of the app didn't have this angle handling and you can remember this >90deg reflection seemed kind of a bug.
+        if (angleDeg > 90.0f)
+            angleDeg = 180.0f - angleDeg;
 
         float zAxis = CalculateZAxis(reversedIncidence, normal);
 

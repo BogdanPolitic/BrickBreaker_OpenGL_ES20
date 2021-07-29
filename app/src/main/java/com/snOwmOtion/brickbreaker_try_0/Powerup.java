@@ -51,15 +51,15 @@ public class Powerup extends Shape {
         switch (powerupFunctionalType) {
             case SIMPLE:
                 droppingDescentSpeed = 2.0f;
-                droppingRotationSpeedDeg = 3.0f;
+                droppingRotationSpeedDeg = 1.0f;
                 break;
             case TRICKY:
                 droppingDescentSpeed = 3.0f;
-                droppingRotationSpeedDeg = 5.0f;
+                droppingRotationSpeedDeg = 1.25f;
                 break;
             default:
                 droppingDescentSpeed = 5.0f;
-                droppingRotationSpeedDeg = 10.0f;
+                droppingRotationSpeedDeg = 2.0f;
         }
 
         this.brickTrigger = (Brick)MyGLRenderer.shapes.get("Brick" + brickTriggerIndex);
@@ -75,32 +75,33 @@ public class Powerup extends Shape {
             return;
 
         status = Status.DROPPING;
-        droppingTimer = InterpolationTimer.AddTimer(GameStatus.powerupDroppingDefaultDuration);
+        droppingTimer = InterpolationTimer.AddTimer((long)((double)GameStatus.powerupDroppingDefaultDuration / (double)droppingDescentSpeed));
     }
 
     public void Update() {
         if (status == Status.DROPPING) {
             float droppingPercent = InterpolationTimer.GetPercent(droppingTimer);
             float droppingTransformArg = droppingRotationSpeedDeg * droppingPercent;
-            float droppingPercentage = droppingDescentSpeed * droppingPercent;
 
-            /*if (percent == 1.0f) {
+            if (!IsInPlatformXRange() && droppingPercent == 1.0f) {
                 status = Status.OFF;
+                GameStatus.OnPowerupGainedOrDestroyed();
                 return;
-            }*/
-
-            if (!IsInPlatformRange() && droppingPercent == 1.0f) {
-                status = Status.OFF;
-                return;
-            } else if (IsInPlatformRange() && GetShapePosition()[Y] <= -1.0f + ValueSheet.groundBorderHeight) {
+            } else if (IsInPlatformXRange() && GetShapePosition()[Y] <= -1.0f + ValueSheet.groundBorderHeight) {
                 status = Status.ON_PLATFORM;
                 opacityTimer = InterpolationTimer.AddTimer(GameStatus.powerupStickingToPlatformDuration);
                 offsetXOnPlatform = GetOffsetXRelativeToPlatformCenter();
                 enableBlending = true;
 
                 ValueSheet.Interval<Float> pointsInterval = ValueSheet.powerupPoints.get(powerupFunctionalType);
-                if (pointsInterval != null)
-                    GameStatus.AddToScore(MyRandom.RandomIntInterval((int)(float)pointsInterval.min, (int)(float)pointsInterval.max));
+                int rewardPoints = MyRandom.RandomIntInterval(
+                        (int)(float)pointsInterval.min,
+                        (int)(float)pointsInterval.max
+                );
+                GameStatus.AddToScore(rewardPoints);
+                // Removing from remaining powerups because if this was the last powerup, we want to end the game RIGHT NOW.
+                // Otherwise, it was indeed more organized to place this when its status went Status.OFF
+                GameStatus.OnPowerupGainedOrDestroyed();
 
                 return;
             }
@@ -113,9 +114,9 @@ public class Powerup extends Shape {
 
             switch (powerupFunctionalType) {
                 case SIMPLE:
-                    // translate powerup so that the X position remains unchanged during its lifetime but the Y position descends gradually per frame:
                     Matrix.translateM(modelMatrix2, 0, BrickNetwork.Position(X, GetIndex()), 0.0f, 0.0f);
-                    Matrix.translateM(modelMatrix1, 0, 0.0f, initPosY + (finalPosY - initPosY) * droppingPercentage, 0.0f);
+                    // translate powerup so that the X position remains unchanged during its lifetime but the Y position descends gradually per frame:
+                    Matrix.translateM(modelMatrix1, 0, 0.0f, initPosY + (finalPosY - initPosY) * droppingPercent, 0.0f);
                     // scale powerup so that at every frame/rotation it's stretch is not affected by the phone's screen ratio:
                     Matrix.scaleM(modelMatrix1, 0, screenRatio, 1.0f, 1.0f);
                     // rotate powerup around self while it's descending towards the ground:
@@ -125,7 +126,7 @@ public class Powerup extends Shape {
                     break;
                 default:    // case TRICKY or SUPER_TRICKY:
                     Matrix.translateM(modelMatrix2, 0, BrickNetwork.Position(X, GetIndex()), 0.0f, 0.0f);
-                    Matrix.translateM(modelMatrix1, 0, 0.0f, initPosY + (finalPosY - initPosY) * droppingPercentage, 0.0f);
+                    Matrix.translateM(modelMatrix1, 0, 0.0f, initPosY + (finalPosY - initPosY) * droppingPercent, 0.0f);
                     Matrix.scaleM(modelMatrix1, 0, screenRatio, 1.0f, 1.0f);
                     // the powerup is not rotating around self, like the SIMPLE powerup type
                     // when the powerup is rotated, the rotation happens around an intuitive circle with the radius equal to the translation described 2-3 lines below:
@@ -166,7 +167,7 @@ public class Powerup extends Shape {
         return BrickNetwork.Position(Y, GetIndex());
     }
 
-    private boolean IsInPlatformRange() {
+    private boolean IsInPlatformXRange() {
         Shape platform = MyGLRenderer.shapes.get("Platform");
         return Math.abs(GetShapePosition()[X] - platform.GetShapePosition()[X]) < ValueSheet.platformWidth / 2.0f;
     }

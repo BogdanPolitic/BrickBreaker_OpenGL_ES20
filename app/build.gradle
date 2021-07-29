@@ -10,8 +10,8 @@ android {
         applicationId "com.snOwmOtion.brickbreaker_try_0"
         minSdkVersion 16
         targetSdkVersion 30
-        versionCode 6
-        versionName "1.0"
+        versionCode 7
+        versionName "1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

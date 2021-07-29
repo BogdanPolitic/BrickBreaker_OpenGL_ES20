@@ -22,6 +22,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Context context;
 
     private final String simple2DShapeVS =
+            "precision highp float;" +
                     "attribute vec3 vPosition;" +
                     "attribute vec4 vColor;" +
                     "uniform mat4 modelMatrix;" +
@@ -31,49 +32,58 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                         "gl_Position = modelMatrix * vec4(vPosition, 1);" +
                     "}";
     private final String simple2DShapeFS =
+                    "precision highp float;" +
                     "varying vec4 outColor;" +
                     "void main() {" +
                         "gl_FragColor = outColor;" +
                     "}";
 
     private final String gradinentBrightened2DShapeVS =
-                    "attribute vec3 vPosition;" +
-                    "attribute vec4 vColor;" +
-                    "uniform mat4 modelMatrix;" +
-                    "varying vec4 outColor;" +
-                    "varying vec4 fragPosition;" +
-                    "void main() {" +
-                        "outColor = vColor;" +
-                        "fragPosition = modelMatrix * vec4(vPosition, 1);" +
-                        "gl_Position = modelMatrix * vec4(vPosition, 1);" +
-                    "}";
+            "precision highp float;" +
+            "attribute vec3 vPosition;" +
+            "attribute vec4 vColor;" +
+            "uniform mat4 modelMatrix;" +
+            "varying vec4 outColor;" +
+            "varying vec4 fragPosition;" +
+
+            "void main() {" +
+                "outColor = vColor;" +
+                "fragPosition = modelMatrix * vec4(vPosition, 1);" +
+                "gl_Position = modelMatrix * vec4(vPosition, 1);" +
+            "}";
     private final String gradinentBrightened2DShapeFS =
-                    "uniform mat4 modelMatrix;" +
-                    "uniform vec3 gradientLineEq;" +
-                    "uniform vec3 gradientLineColor;" +
-                    "varying vec4 outColor;" +
-                    "varying vec4 fragPosition;" +
-                    "float pi = 3.141f;" +
-                    "float dstMultiplier = 1.0f;" +
-                    "float Pow(float x, int exp) {" +
-                        "float p = 1.0f;" +
-                        "for (int i = 0; i < exp; i++) {" +
-                            "p *= x;" +
-                        "}" +
-                        "return p;" +
-                    "}" +
-                    "float CalculateDistance() {" +
-                        "return abs(gradientLineEq.x * fragPosition.x + gradientLineEq.y * fragPosition.y + gradientLineEq.z) " +
-                            "/ sqrt(Pow(gradientLineEq.x, 2) + Pow(gradientLineEq.y, 2));" +
-                     "}" +
-                    "float CalculateMix(float dstFromLine) {" +
-                        "return max(cos(dstFromLine * pi * dstMultiplier), 0.0f);" +
-                    "}" +
-                    "void main() {" +
-                        "gl_FragColor = mix(outColor, vec4(gradientLineColor, 1.0f), CalculateMix(CalculateDistance()));" +
-                    "}";
+            "precision highp float;" +
+            "uniform mat4 modelMatrix;" +
+            "uniform vec3 gradientLineEq;" +
+            "uniform vec3 gradientLineColor;" +
+            "varying vec4 outColor;" +
+            "varying vec4 fragPosition;" +
+            "float pi = 3.141;" +
+            "float dstMultiplier = 1.0;" +
+
+            "float Pow(float x, int exp) {" +
+                "float p = 1.0;" +
+                "for (int i = 0; i < exp; i++) {" +
+                    "p *= x;" +
+                "}" +
+                "return p;" +
+            "}" +
+
+            "float CalculateDistance() {" +
+                "return abs(gradientLineEq.x * fragPosition.x + gradientLineEq.y * fragPosition.y + gradientLineEq.z) " +
+                "/ sqrt(Pow(gradientLineEq.x, 2) + Pow(gradientLineEq.y, 2));" +
+            "}" +
+
+            "float CalculateMix(float dstFromLine) {" +
+                "return max(cos(dstFromLine * pi * dstMultiplier), 0.0);" +
+            "}" +
+
+            "void main() {" +
+                "gl_FragColor = mix(outColor, vec4(gradientLineColor, 1.0), CalculateMix(CalculateDistance()));" +
+            "}";
 
     private final String ball3DShapeVS =
+            "precision mediump float;" +
             "attribute vec3 vPosition;" +
                     "attribute vec4 vColor;" +
                     "uniform mat4 modelMatrix;" +
@@ -86,6 +96,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
                         //"gl_Position = modelMatrix * vec4(vPosition, 1);" +
                     "}";
     private final String ball3DShapeFS =
+                    "precision mediump float;" +
                     "varying vec4 outColor;" +
                     "void main() {" +
                         "gl_FragColor = outColor;" +
@@ -270,11 +281,26 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
 
         for (int brickIdx = 0; brickIdx < BrickNetwork.size[X] * BrickNetwork.size[Y]; brickIdx++) {
-            Brick brick = ShapeFactory.CreateBrick(
+            /*Brick brick = ShapeFactory.CreateBrick(
                     new float[]{BrickNetwork.brickSize[X], BrickNetwork.brickSize[Y]},
                     new float[]{1.0f, 0.0f, 0.0f, 1.0f}, brickIdx
-            );
-            shapes.put("Brick" + brickIdx, brick);
+            );*/
+
+            //shapes.put("Brick" + brickIdx, brick);
+
+            {
+                float[] color = new float[]{1.0f, 0.0f, 0.0f, 1.0f};
+                VertexFormat[] vertices = new VertexFormat[]{
+                        new VertexFormat(new float[]{-BrickNetwork.brickSize[X] / 2.0f, -BrickNetwork.brickSize[Y] / 2.0f, 0}, color),
+                        new VertexFormat(new float[]{-BrickNetwork.brickSize[X] / 2.0f, BrickNetwork.brickSize[Y] / 2.0f, 0}, color),
+                        new VertexFormat(new float[]{BrickNetwork.brickSize[X] / 2.0f, -BrickNetwork.brickSize[Y] / 2.0f, 0}, color),
+                        new VertexFormat(new float[]{BrickNetwork.brickSize[X] / 2.0f, BrickNetwork.brickSize[Y] / 2.0f, 0}, color),
+                };
+                short[] indices = new short[]{
+                        0, 2, 1, 1, 2, 3
+                };
+                shapes.put("Brick" + brickIdx, new Brick(vertices, indices, brickIdx));
+            }
 
             // for a less than 100% chance of generating powerups, null conditions SHOULD be implemented at each powerup access!
             if (MyRandom.ChanceForFact(100)) {

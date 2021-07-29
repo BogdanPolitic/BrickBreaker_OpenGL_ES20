@@ -20,6 +20,7 @@ public class ValueSheet {
     public static float supplyBallsDepthUnderPlatform = 0.07f;
     public static float distanceBetweenSupplyBalls = 0.06f;
     public static float ballDirectionFlatLimit = 0.2f;
+    public static float ballDefaultPace = 0.0003f;
 
     public static float[] gradientLineP1 = new float[] {-0.6f, 1.0f, 0.0f, 1.0f};
     public static float[] gradientLineP2 = new float[] {-0.1f, -1.0f, 0.0f, 1.0f};

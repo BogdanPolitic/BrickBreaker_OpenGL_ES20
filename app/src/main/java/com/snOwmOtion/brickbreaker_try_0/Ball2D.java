@@ -23,8 +23,8 @@ public class Ball2D extends Shape {
     public void Travel() {
         float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
         float[] velocity = new float[] {
-                GameStatus.ballDirection[X] * screenRatio * GameStatus.ballSpeed,
-                GameStatus.ballDirection[Y] * GameStatus.ballSpeed,
+                GameStatus.ballDirection[X] * ValueSheet.ballDefaultPace * GameStatus.ballSpeedMultiplier * GameStatus.deltaTime * screenRatio,
+                GameStatus.ballDirection[Y] * ValueSheet.ballDefaultPace * GameStatus.ballSpeedMultiplier * GameStatus.deltaTime,
                 0.0f
         };
         Matrix.translateM(modelMatrix, 0, velocity[X], velocity[Y], 0.0f);

@@ -19,8 +19,6 @@ public class Shape {
     VertexFormat[] vertices;
     short[] indices;
     public float[] modelMatrix = new float[16];
-    public float[] viewMatrix = new float[16];
-    public float[] orthoMatrix = new float[16];
 
     protected int positionHandle;
     protected int colorHandle;

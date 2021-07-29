@@ -7,9 +7,46 @@ public class Collisions {
     static class CornerInRange {
         int brickId;
         CornerType cornerType;
+        float[] cornerPosition;
+
+        private void CalculateCornerPosition() {
+            float[] brickPosition = new float[] {
+                    BrickNetwork.Position(X, brickId),
+                    BrickNetwork.Position(Y, brickId),
+                    0.0f
+            };
+            float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+
+            float right, up;
+            switch (cornerType) {
+                case BOTTOM_LEFT:
+                    right = -1.0f;
+                    up = -1.0f;
+                    break;
+                case TOP_LEFT:
+                    right = -1.0f;
+                    up = 1.0f;
+                    break;
+                case BOTTOM_RIGHT:
+                    right = 1.0f;
+                    up = -1.0f;
+                    break;
+                default:
+                    right = 1.0f;
+                    up = 1.0f;
+            }
+            cornerPosition = new float[] {
+                    brickPosition[X] + right * BrickNetwork.brickSize[X] / 2.0f * screenRatio,
+                    brickPosition[Y] + up * BrickNetwork.brickSize[Y] / 2.0f * screenRatio,
+                    0.0f,
+                    1.0f
+            };
+        }
+
         public CornerInRange(int brickId, CornerType cornerType) {
             this.brickId = brickId;
             this.cornerType = cornerType;
+            CalculateCornerPosition();
         }
     }
 
@@ -48,7 +85,7 @@ public class Collisions {
     private static ArrayList<Integer> brickCollisions = new ArrayList<Integer>();
     private static ArrayList<CornerInRange> cornersInRange = new ArrayList<CornerInRange>();
     private static ArrayList<EdgeInRange> edgesInRange = new ArrayList<EdgeInRange>();
-    private static HashMap<CornerType, float[]> cornerNormal = new HashMap<CornerType, float[]>();
+    //private static HashMap<CornerType, float[]> cornerNormal = new HashMap<CornerType, float[]>();
     private static HashMap<EdgeType, float[]> edgeNormal = new HashMap<EdgeType, float[]>();
 
 
@@ -57,16 +94,20 @@ public class Collisions {
         float[] activeBallPosition = MyGLRenderer.shapes.get("Ball2D" + GameStatus.ActiveBallId()).GetShapePosition();
         float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
 
-        if (activeBallPosition[X] - ValueSheet.ballRadius * screenRatio < -1.0f + ValueSheet.borderWidthHoriz)
+        if (activeBallPosition[X] - ValueSheet.ballRadius * screenRatio < -1.0f + ValueSheet.borderWidthHoriz
+            && GameStatus.ballDirection[X] < 0.0f)
             borderCollisions.add(Borders.LEFT);
 
-        if (activeBallPosition[X] + ValueSheet.ballRadius * screenRatio > 1.0f - ValueSheet.borderWidthHoriz)
+        if (activeBallPosition[X] + ValueSheet.ballRadius * screenRatio > 1.0f - ValueSheet.borderWidthHoriz
+            && GameStatus.ballDirection[X] > 0.0f)
             borderCollisions.add(Borders.RIGHT);
 
-        if (activeBallPosition[Y] + ValueSheet.ballRadius > 1.0f - ValueSheet.borderWidthHoriz / screenRatio)
+        if (activeBallPosition[Y] + ValueSheet.ballRadius > 1.0f - ValueSheet.borderWidthHoriz / screenRatio
+            && GameStatus.ballDirection[Y] > 0.0f)
             borderCollisions.add(Borders.TOP);
 
-        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight + ValueSheet.platformHeight / 2.0f) {
+        if (activeBallPosition[Y] - ValueSheet.ballRadius < -1.0f + ValueSheet.groundBorderHeight + ValueSheet.platformHeight / 2.0f
+            && GameStatus.ballDirection[Y] < 0.0f) {
             float[] platformPosition = MyGLRenderer.shapes.get("Platform").GetShapePosition();
             if (Math.abs(activeBallPosition[X] - platformPosition[X]) <= ValueSheet.platformWidth / 2.0f)
                 borderCollisions.add(Borders.PLATFORM);
@@ -247,24 +288,24 @@ public class Collisions {
         // collisionsCount == 1
         float[] reflectedDirection;
         if (cornersInRange.size() > 0) {
-            reflectedDirection = MyMath.Reflect(
+            float[] activeBallPosition = MyGLRenderer.shapes.get("Ball2D" + GameStatus.ActiveBallId()).GetShapePosition();
+            float[] reflectionNormal = MyMath.VectorDifference(activeBallPosition, cornersInRange.get(0).cornerPosition);
+            reflectedDirection = MyMath.ReflectSharpAngles(
                     GameStatus.ballDirection,
-                    cornerNormal.get(cornersInRange.get(0).cornerType)
+                    reflectionNormal
             );
             GameStatus.ballDirection = reflectedDirection;
-            //Adjustments.AdjustBallDirection();
             GameStatus.NormalizeDirection();
             FreeCollisionData();
             return;
         }
 
         if (edgesInRange.size() > 0) {
-            reflectedDirection = MyMath.Reflect(
+            reflectedDirection = MyMath.ReflectSharpAngles(
                     GameStatus.ballDirection,
                     edgeNormal.get(edgesInRange.get(0).edgeType)
             );
             GameStatus.ballDirection = reflectedDirection;
-            //Adjustments.AdjustBallDirection();
             GameStatus.NormalizeDirection();
         }
 
@@ -323,12 +364,12 @@ public class Collisions {
 
     public static void Init() {
         {
-            float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
-            float norm = (float) Math.sqrt(Math.pow(BrickNetwork.brickSize[X] / screenRatio, 2) + Math.pow(BrickNetwork.brickSize[Y], 2));
-            cornerNormal.put(CornerType.BOTTOM_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
-            cornerNormal.put(CornerType.BOTTOM_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
-            cornerNormal.put(CornerType.TOP_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
-            cornerNormal.put(CornerType.TOP_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            //float screenRatio = GameStatus.glWindowHeight / GameStatus.glWindowWidth;
+            //float norm = (float) Math.sqrt(Math.pow(BrickNetwork.brickSize[X] / screenRatio, 2) + Math.pow(BrickNetwork.brickSize[Y], 2));
+            //cornerNormal.put(CornerType.BOTTOM_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            //cornerNormal.put(CornerType.BOTTOM_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, -BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            //cornerNormal.put(CornerType.TOP_LEFT, new float[]{-BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
+            //cornerNormal.put(CornerType.TOP_RIGHT, new float[]{BrickNetwork.brickSize[X] / screenRatio / norm, BrickNetwork.brickSize[Y] / norm, 0.0f, 1.0f});
         }
 
         edgeNormal.put(EdgeType.BOTTOM, new float[] {0.0f, -1.0f, 0.0f, 1.0f});

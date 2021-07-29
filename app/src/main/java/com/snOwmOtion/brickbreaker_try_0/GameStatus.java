@@ -45,8 +45,8 @@ public class GameStatus {
 
     public static int supplyBallsCount;
     public static BallStatus ballStatus = BallStatus.ON_PLATFORM;
-    public static float ballSpeed = 0.01f;
-    public static float initialBallSpeed = 0.01f;
+    public static float initialBallSpeedMultiplier = 3.0f;
+    public static float ballSpeedMultiplier = initialBallSpeedMultiplier;
     public static float[] ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
     // We get the real velocity by multiplying the direction with the amount of speed.
 
@@ -55,6 +55,7 @@ public class GameStatus {
     public static int remainingBricksCount;
     public static long brickShrinkingAwayDuration = 500l;    // milliseconds
 
+    public static int remainingPowerupsCount;
     public static long powerupDroppingDefaultDuration = 2500l;  // milliseconds
     public static long powerupStickingToPlatformDuration = 1500l;   // milliseconds
 
@@ -100,6 +101,12 @@ public class GameStatus {
         ballStatus = BallStatus.FLOATING;
     }
 
+    public static void OnPowerupGainedOrDestroyed() {
+        remainingPowerupsCount--;
+        if (remainingPowerupsCount == 0)
+            OnGameWonPopup();
+    }
+
     public static void InitBonifications() {
         bonifications = new Bonifications();
         bonifications.Init();
@@ -112,7 +119,7 @@ public class GameStatus {
     public static void RevertBonuses() {
         ValueSheet.platformHeight = ValueSheet.initialPlatformHeight;
         ValueSheet.platformWidth = ValueSheet.initialPlatformWidth;
-        ballSpeed = initialBallSpeed;
+        ballSpeedMultiplier = initialBallSpeedMultiplier;
 
         ((Platform)MyGLRenderer.shapes.get("Platform")).ChangeSizeCoord(X, ValueSheet.initialPlatformWidth);
         ((Platform)MyGLRenderer.shapes.get("Platform")).ChangeSizeCoord(Y, ValueSheet.initialPlatformHeight);
@@ -176,9 +183,11 @@ public class GameStatus {
         score = 0;
         MainActivity.GetInstance().SetScore(score);
         ballStatus = BallStatus.ON_PLATFORM;
-        ballSpeed = 0.01f;
+        ballSpeedMultiplier = 0.01f;
         ballDirection = new float[] {0.0f, 1.0f, 0.0f, 1.0f};
         supplyBallsCount = ValueSheet.initialSupplyBallsCount;
+        // To be changed if powerups are configured not to have a 100% chance drop on every break!
+        remainingPowerupsCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
 
         MyGLRenderer.ResetBrickNetwork();
         MyGLRenderer.ResetPowerups();
@@ -195,20 +204,21 @@ public class GameStatus {
     public static void Init() {
         appState = AppState.INGAME;
         gameState = GameState.IN_PLAY;
-        GameStatus.remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
+        remainingBricksCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
+        // To be changed if powerups are configured not to have a 100% chance drop on every break!
+        remainingPowerupsCount = BrickNetwork.size[X] * BrickNetwork.size[Y];
         supplyBallsCount = ValueSheet.initialSupplyBallsCount;
         MainActivity.GetInstance().SetScore(GameStatus.score);
     }
 
     public static void Update() {
-        UpdateTime();
         UpdateScoreFont();
 
         ApplyBonuses();
         Adjustments.AdjustBallDirection();
         NormalizeDirection();
 
-        if (gameState == GameState.IN_PLAY && remainingBricksCount == 0)
+        if (gameState == GameState.IN_PLAY && remainingBricksCount == 0 && remainingPowerupsCount == 0)
             OnGameWonPopup();
 
         switch (appState) {
@@ -245,6 +255,7 @@ public class GameStatus {
                 break;
         }
 
+        UpdateTime();
         InterpolationTimer.Update();
     }
 }

@@ -19,6 +19,8 @@ public class InterpolationTimer {
     }
 
     public static float GetPercent(long id) {
+        if (!timers.containsKey(id)) return 1.0f;
+
         InterpolationTimer iT = timers.get(id);
         if (iT.timeLapsed == iT.duration)
             timers.remove(id);
