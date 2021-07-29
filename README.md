@@ -1,4 +1,4 @@
-# BrickBreaker_OpenGL_ES20_AndroidStudio
+# BrickBreaker_OpenGL_ES20_AndroidStudio [[Play Store link](https://play.google.com/store/apps/details?id=com.snOwmOtion.brickbreaker_try_0)]
 
 <h3> General description </h3>
 
